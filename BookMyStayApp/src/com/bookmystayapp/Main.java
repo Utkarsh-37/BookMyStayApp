@@ -1,22 +1,21 @@
 /*
- * UC3: Booking Request Queue (First-Come-First-Served)
- * ----------------------------------------------------
- * Introduced a FIFO booking queue to accept and order booking requests fairly.
- * Option 6 now accepts N users in one go; each request is enqueued in sequence
- * with a fixed 3000 ms delay between users to mimic staggered arrivals.
- * Synchronized queue operations keep things simple (no concurrent collections).
+ * UC4: Reservation Confirmation & Room Allocation
+ * -----------------------------------------------
+ * Added FIFO processing of queued booking requests with atomic room allocation:
+ * - Dequeues next request, decrements inventory if available, and assigns a unique room ID.
+ * - Prevents double-booking via a Set of booked room IDs and per-type assignment tracking.
+ * - Options 8 & 9 confirm one/all reservations; option 10 displays confirmed allocations.
  *
- * @version 3.0
+ * @version 4.0
  * @author developer
  */
-
-
 package com.bookmystayapp;
 
 import com.bookmystayapp.inventorymanagement.*;
 import com.bookmystayapp.roomavailability.*;
 import com.bookmystayapp.booking.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
@@ -27,12 +26,13 @@ public class Main {
         HotelAdmin admin = new HotelAdmin(inv);
         SearchService search = new SearchService(inv);
 
-        // UC3: queue service (no simulator needed now)
+        // UC3/UC4 services
         BookingQueueService bookingQueue = new BookingQueueService();
+        BookingService bookingService = new BookingService();
 
         Scanner sc = new Scanner(System.in);
 
-        System.out.println("Welcome to BookMyStay - UC1, UC2 & UC3");
+        System.out.println("Welcome to BookMyStay - UC1, UC2, UC3 & UC4");
 
         // UC1: Initialize basic room types at runtime
         initDefaultType(sc, admin, "Single");
@@ -60,9 +60,14 @@ public class Main {
                 // UC2
                 case 5 -> guestSearchMenu(sc, search);
 
-                // UC3 (updated as requested)
+                // UC3
                 case 6 -> addMultipleBookingRequestsWithDelay(sc, bookingQueue);
                 case 7 -> bookingQueue.printQueue();
+
+                // UC4
+                case 8 -> processNextBooking(bookingQueue, bookingService, inv);
+                case 9 -> processAllBookings(bookingQueue, bookingService, inv);
+                case 10 -> bookingService.printAssignedRooms();
 
                 case 0 -> {
                     System.out.println("Exiting program...");
@@ -168,9 +173,13 @@ public class Main {
     }
 
     // ------------------------------
-    // UC3 Helpers (Updated as requested)
+    // UC3 Helpers (Multiple requests with delay)
     // ------------------------------
 
+    /**
+     * Option 6: Accept N users in one go and enqueue each booking request
+     * with a fixed 3000 ms delay between successive users.
+     */
     private static void addMultipleBookingRequestsWithDelay(Scanner sc, BookingQueueService queue) {
         int users = readPositiveInt(sc, "How many users do you want to make a booking request? ");
 
@@ -200,6 +209,30 @@ public class Main {
     }
 
     // ------------------------------
+    // UC4 Helpers (Confirm reservations)
+    // ------------------------------
+
+    private static void processNextBooking(BookingQueueService queue,
+                                           BookingService bookingService,
+                                           InventoryService inv) {
+        BookingConfirmation conf = bookingService.confirmNext(queue, inv);
+        System.out.println(conf);
+    }
+
+    private static void processAllBookings(BookingQueueService queue,
+                                           BookingService bookingService,
+                                           InventoryService inv) {
+        List<BookingConfirmation> results = bookingService.confirmAll(queue, inv);
+        if (results.isEmpty()) {
+            System.out.println("No pending requests to process.");
+            return;
+        }
+        System.out.println("\n=== UC4: Batch Processing Results ===");
+        results.forEach(System.out::println);
+        System.out.println("=====================================");
+    }
+
+    // ------------------------------
     // Menu & Input Helpers
     // ------------------------------
 
@@ -210,8 +243,11 @@ public class Main {
         System.out.println("3. Check availability");
         System.out.println("4. Show full inventory (with amenities)");
         System.out.println("5. Guest Search (read-only)"); // UC2
-        System.out.println("6. Add booking requests (UC3)"); // updated
+        System.out.println("6. Add booking requests (UC3)");
         System.out.println("7. View booking queue (UC3)");
+        System.out.println("8. Process next booking (UC4)");
+        System.out.println("9. Process all pending bookings (UC4)");
+        System.out.println("10. View confirmed allocations (UC4)");
         System.out.println("0. Exit");
     }
 
