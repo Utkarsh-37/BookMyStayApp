@@ -3,7 +3,6 @@ package com.bookmystayapp.inventorymanagement;
 import java.util.Map;
 
 public class HotelAdmin {
-
     private final InventoryService inventoryService;
 
     public HotelAdmin(InventoryService inventoryService) {
@@ -12,6 +11,10 @@ public class HotelAdmin {
 
     public void initializeRoomType(String type, int count, double price) {
         inventoryService.initialAddRoomType(type, count, price);
+    }
+
+    public boolean setAmenities(String type, String amenitiesCsv) {
+        return inventoryService.setAmenities(type, amenitiesCsv);
     }
 
     public boolean updateRoomCount(String type, int newCount) {
@@ -32,11 +35,13 @@ public class HotelAdmin {
 
     public void printInventory() {
         Map<String, String> inv = inventoryService.getFormattedInventory();
-        System.out.println("\n=== Current Inventory ===");
-        inv.forEach((t, details) -> {
-            System.out.println(capitalize(t) + " -> " + details);
-        });
-        System.out.println("=========================\n");
+        if (inv.isEmpty()) {
+            System.out.println("No room types configured yet.");
+            return;
+        }
+        System.out.println("=== Current Inventory ===");
+        inv.forEach((type, details) -> System.out.println(capitalize(type) + " -> " + details));
+        System.out.println("=========================");
     }
 
     private String capitalize(String s) {
